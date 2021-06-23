@@ -2,6 +2,7 @@
 * Software License Agreement (BSD License)
 *
 * Copyright (c) 2014, Georgia Tech
+* Copyright (c) 2019, Ascent Robotics inc.
 * All rights reserved.
 *
 * Redistribution and use in source and binary forms, with or without
@@ -32,7 +33,7 @@
 * POSSIBILITY OF SUCH DAMAGE.
 *********************************************************************/
 
-/* Author: Kelsey Hawkins */
+/* Authors: Kelsey Hawkins, Leo Ghafari */
 
 /* Based on orignal source from Willow Garage. License copied below */
 
@@ -86,7 +87,7 @@
 
 // UR kin
 #include <ur_kinematics/ur_moveit_plugin.h>
-#include <ur_kinematics/ur_kin.h>
+#include <ur_kinematics/ur_kin.hpp>
 
 //register KDLKinematics as a KinematicsBase implementation
 CLASS_LOADER_REGISTER_CLASS(ur_kinematics::URKinematicsPlugin, kinematics::KinematicsBase)
@@ -635,9 +636,31 @@ bool URKinematicsPlugin::searchPositionIK(const geometry_msgs::Pose &ik_pose,
     for(int i=0; i<3; i++) homo_ik_pose[i][3] *= 1000; // strange KDL fix
 #endif
     /////////////////////////////////////////////////////////////////////////////
+    #ifdef UR3_PARAMS
+    constexpr auto parameters = ur_kinematics::UR3;
+    #endif
 
+    #ifdef UR5_PARAMS
+    constexpr auto parameters = ur_kinematics::UR5;
+    #endif
+
+    #ifdef UR10_PARAMS
+    constexpr auto parameters = ur_kinematics::UR10;
+    #endif
+
+    #ifdef UR3_E_PARAMS
+    constexpr auto parameters = ur_kinematics::UR3E;
+    #endif
+
+    #ifdef UR5_E_PARAMS
+    constexpr auto parameters = ur_kinematics::UR5E;
+    #endif
+
+    #ifdef UR10_E_PARAMS
+    constexpr auto parameters = ur_kinematics::UR10E;
+    #endif
     // Do the analytic IK
-    num_sols = inverse((double*) homo_ik_pose, (double*) q_ik_sols, 
+    num_sols = ur_kinematics::inverse(parameters, (double*) homo_ik_pose, (double*) q_ik_sols, 
                        jnt_pos_test(ur_joint_inds_start_+5));
     
     

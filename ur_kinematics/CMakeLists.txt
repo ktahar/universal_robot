@@ -1,23 +1,31 @@
-cmake_minimum_required(VERSION 2.8.3)
+cmake_minimum_required(VERSION 3.1)
 project(ur_kinematics)
 
-add_compile_options(-std=c++11)
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+option(BUILD_BENCHMARK "Build the ur_kinematics benchmarks (requires google benchmark)" OFF)
+option(BUILD_TESTS "Build tests (requires GTest)" OFF)
 
 find_package(catkin REQUIRED COMPONENTS roscpp geometry_msgs moveit_core moveit_kinematics
   moveit_ros_planning pluginlib tf_conversions)
 
 find_package(Boost REQUIRED COMPONENTS system)
+find_package(PythonLibs REQUIRED)
 
 catkin_python_setup()
 
 catkin_package(
   INCLUDE_DIRS include
-  LIBRARIES ur3_kin ur5_kin ur10_kin ur3_moveit_plugin ur5_moveit_plugin ur10_moveit_plugin
+  LIBRARIES ur3_kin ur3_moveit_plugin ur5_moveit_plugin ur10_moveit_plugin ur3_e_moveit_plugin ur5_e_moveit_plugin ur10_e_moveit_plugin
   CATKIN_DEPENDS roscpp geometry_msgs moveit_core moveit_kinematics moveit_ros_planning
     pluginlib tf_conversions
   DEPENDS Boost
 )
 
+include_directories(SYSTEM ${PYTHON_NUMPY_INCLUDE_DIR})
+include_directories(SYSTEM ${PYTHON_INCLUDE_DIRS})
+add_subdirectory(pybind11)
 
 ###########
 ## Build ##
@@ -26,43 +34,63 @@ catkin_package(
 include_directories(SYSTEM ${Boost_INCLUDE_DIR})
 include_directories(include ${catkin_INCLUDE_DIRS})
 
-add_library(ur3_kin src/ur_kin.cpp)
-set_target_properties(ur3_kin PROPERTIES COMPILE_DEFINITIONS "UR3_PARAMS")
+define_property( GLOBAL PROPERTY UR_TARGETS_PROP
+  BRIEF_DOCS "Targets list"
+  FULL_DOCS "Targets list")
 
-add_library(ur5_kin src/ur_kin.cpp)
-set_target_properties(ur5_kin PROPERTIES COMPILE_DEFINITIONS "UR5_PARAMS")
+function(ADD_ROBOT ROBOT)
+  string(TOUPPER ${ROBOT} UPPER_ROBOT)
+  string(TOLOWER ${ROBOT} LOWER_ROBOT)
 
-add_library(ur10_kin src/ur_kin.cpp)
-set_target_properties(ur10_kin PROPERTIES COMPILE_DEFINITIONS "UR10_PARAMS")
+  set(ROBOT_PARAMS "${UPPER_ROBOT}_PARAMS")
+  set(TARGET_NAME "${LOWER_ROBOT}_moveit_plugin")
+
+  add_library(${TARGET_NAME} src/ur_moveit_plugin.cpp)
+  set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_DEFINITIONS ${ROBOT_PARAMS})
+  target_link_libraries(${TARGET_NAME}
+    ${catkin_LIBRARIES}
+    ${Boost_LIBRARIES})
+
+  set_property(GLOBAL APPEND PROPERTY UR_TARGETS_PROP ${TARGET_NAME})
+endfunction()
 
 
-add_library(ur3_moveit_plugin src/ur_moveit_plugin.cpp)
-set_target_properties(ur3_moveit_plugin PROPERTIES COMPILE_DEFINITIONS "UR3_PARAMS")
-target_link_libraries(ur3_moveit_plugin
-  ${catkin_LIBRARIES}
-  ${Boost_LIBRARIES}
-  ur3_kin)
 
-add_library(ur5_moveit_plugin src/ur_moveit_plugin.cpp)
-set_target_properties(ur5_moveit_plugin PROPERTIES COMPILE_DEFINITIONS "UR5_PARAMS")
-target_link_libraries(ur5_moveit_plugin
-  ${catkin_LIBRARIES}
-  ${Boost_LIBRARIES}
-  ur5_kin)
+ADD_ROBOT("ur3")
+ADD_ROBOT("ur5")
+ADD_ROBOT("ur10")
 
-add_library(ur10_moveit_plugin src/ur_moveit_plugin.cpp)
-set_target_properties(ur10_moveit_plugin PROPERTIES COMPILE_DEFINITIONS "UR10_PARAMS")
-target_link_libraries(ur10_moveit_plugin
-  ${catkin_LIBRARIES}
-  ${Boost_LIBRARIES}
-  ur10_kin)
+ADD_ROBOT("ur3_e")
+ADD_ROBOT("ur5_e")
+ADD_ROBOT("ur10_e")
 
+pybind11_add_module(ur_kin_py src/ur_kin_py.cpp)
+target_link_libraries(ur_kin_py PRIVATE ${catkin_LIBRARIES})
+set_target_properties(ur_kin_py PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_PYTHON_DESTINATION})
+
+if(BUILD_BENCHMARK)
+  find_package(benchmark REQUIRED)
+  add_executable(benchmark_kinematics src/benchmark_kinematics.cpp)
+  target_link_libraries(benchmark_kinematics
+    ${catkin_LIBRARIES}
+    ${Boost_LIBRARIES}
+    benchmark)
+  set_property(GLOBAL APPEND PROPERTY UR_TARGETS_PROP benchmark_kinematics)
+endif()
+
+if(BUILD_TESTS)
+find_package(GTest REQUIRED)
+  add_executable(ur_kinematics_tests src/test_kinematics.cpp )
+  # Link test executable against gtest & gtest_main
+  target_link_libraries(ur_kinematics_tests GTest::Main GTest::GTest)
+  gtest_discover_tests(ur_kinematics_tests)
+endif()
 
 #############
 ## Install ##
 #############
-
-install(TARGETS ur3_kin ur5_kin ur10_kin ur3_moveit_plugin ur5_moveit_plugin ur10_moveit_plugin
+get_property(UR_TARGETS GLOBAL PROPERTY UR_TARGETS_PROP)
+install(TARGETS ${$UR_TARGETS}
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
