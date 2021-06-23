@@ -1,3 +1,0 @@
-[submodule "ur_kinematics/pybind11"]
-	path = ur_kinematics/pybind11
-	url = https://github.com/pybind/pybind11.git

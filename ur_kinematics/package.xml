@@ -26,6 +26,7 @@
   <depend>pluginlib</depend>
   <depend>tf_conversions</depend>
   <depend>boost</depend>
+  <depend>pybind11_catkin</depend>
 
   <exec_depend>rospy</exec_depend>
 

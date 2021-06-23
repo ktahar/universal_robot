@@ -8,7 +8,7 @@ option(BUILD_BENCHMARK "Build the ur_kinematics benchmarks (requires google benc
 option(BUILD_TESTS "Build tests (requires GTest)" OFF)
 
 find_package(catkin REQUIRED COMPONENTS roscpp geometry_msgs moveit_core moveit_kinematics
-  moveit_ros_planning pluginlib tf_conversions)
+  moveit_ros_planning pluginlib tf_conversions pybind11_catkin)
 
 find_package(Boost REQUIRED COMPONENTS system)
 find_package(PythonLibs REQUIRED)
@@ -18,14 +18,10 @@ catkin_python_setup()
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES ur3_kin ur3_moveit_plugin ur5_moveit_plugin ur10_moveit_plugin ur3_e_moveit_plugin ur5_e_moveit_plugin ur10_e_moveit_plugin
-  CATKIN_DEPENDS roscpp geometry_msgs moveit_core moveit_kinematics moveit_ros_planning
+  CATKIN_DEPENDS roscpp geometry_msgs moveit_core moveit_kinematics moveit_ros_planning pybind11_catkin
     pluginlib tf_conversions
   DEPENDS Boost
 )
-
-include_directories(SYSTEM ${PYTHON_NUMPY_INCLUDE_DIR})
-include_directories(SYSTEM ${PYTHON_INCLUDE_DIRS})
-add_subdirectory(pybind11)
 
 ###########
 ## Build ##
@@ -34,7 +30,7 @@ add_subdirectory(pybind11)
 include_directories(SYSTEM ${Boost_INCLUDE_DIR})
 include_directories(include ${catkin_INCLUDE_DIRS})
 
-define_property( GLOBAL PROPERTY UR_TARGETS_PROP
+define_property(GLOBAL PROPERTY UR_TARGETS_PROP
   BRIEF_DOCS "Targets list"
   FULL_DOCS "Targets list")
 
@@ -64,9 +60,7 @@ ADD_ROBOT("ur3_e")
 ADD_ROBOT("ur5_e")
 ADD_ROBOT("ur10_e")
 
-pybind11_add_module(ur_kin_py src/ur_kin_py.cpp)
-target_link_libraries(ur_kin_py PRIVATE ${catkin_LIBRARIES})
-set_target_properties(ur_kin_py PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_PYTHON_DESTINATION})
+pybind_add_module(ur_kin_py src/ur_kin_py.cpp)
 
 if(BUILD_BENCHMARK)
   find_package(benchmark REQUIRED)
@@ -94,6 +88,10 @@ install(TARGETS ${UR_TARGETS}
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+
+install(TARGETS ur_kin_py
+  LIBRARY DESTINATION ${PYTHON_INSTALL_DIR}
 )
 
 # install header files
